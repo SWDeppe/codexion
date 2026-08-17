@@ -6,7 +6,7 @@
 /*   By: sdeppe <sdeppe@student.42.fr>              +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/05/26 17:46:23 by sdeppe            #+#    #+#             */
-/*   Updated: 2026/05/29 14:00:18 by sdeppe           ###   ########.fr       */
+/*   Updated: 2026/05/30 20:32:39 by sdeppe           ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -16,13 +16,21 @@
 
 enum {
 	WAITING,
-	DUBUGING,	
+	DEBUGING,	
 	COMPILING,
 	REFACTORING,
 };
 
+enum {
+	FIFO, // FIRST IN FIRST OUT
+	EDF   // EARLIEST DEADLINE FIRST
+};
+
 typedef struct s_dungle 
 {
+	unsigned int	id;
+	unsigned int	next_holder;
+	long			last_use;
 	pthread_mutex_t	mutex;
 	pthread_cond_t	cond;
 	long			holder; // -1 (unused) or coder index
@@ -43,14 +51,20 @@ typedef struct s_monitor
 	pthread_mutex_t stop_mutex;
 }				t_monitor;
 
-typedef struct s_coder 
+typedef struct s_queue
+{
+	unsigned int	queue_type;
+	t_dungle		*dungles;
+}			 	t_queue;
+
+typedef struct s_coder
 {
 	pthread_t		thread;
-	t_dungle		left_dungle;
-	t_dungle		right_dungle;
+	t_dungle		*left_dungle;
+	t_dungle		*right_dungle;
 	size_t			id;
-	bool			burned_out;
-	bool			status;
+	unsigned int	status;
+	long			last_start_time;
 	bool			*stop;
 	pthread_mutex_t	stop_mutex;
 	t_compil		*compilation;

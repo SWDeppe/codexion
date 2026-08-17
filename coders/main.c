@@ -6,7 +6,7 @@
 /*   By: sdeppe <sdeppe@student.42.fr>              +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/05/26 17:43:25 by sdeppe            #+#    #+#             */
-/*   Updated: 2026/05/30 14:56:35 by sdeppe           ###   ########.fr       */
+/*   Updated: 2026/05/30 20:23:01 by sdeppe           ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -14,18 +14,18 @@
 #include "structs.h"
 
 #define CODERS 10
-#define COMPILING_TIME 200000
-#define DEBUGING_TIME 20000
-#define REFACTORING_TIME 30000
-#define MAX 3
+#define COMPILING_TIME 1
+#define DEBUGING_TIME 1
+#define REFACTORING_TIME 2
+#define PLUG_REALOAD 2
+#define MAX 30
 
 void *coder_routine(void *arg) {
 	t_coder *coder = (t_coder *)arg;
-	printf("coder %zu says hello\n", coder->id);
+	// printf("coder %zu says hello\n", coder->id);
 	struct timeval tv;
-	unsigned int time = 1000000;
+	// unsigned int time = 1000000;
 	while (1) {
-		coder->status = WAITING;
 		// strop if monitor says to
 		pthread_mutex_lock(&coder->stop_mutex);
 		if (*coder->stop)
@@ -35,33 +35,58 @@ void *coder_routine(void *arg) {
 		}
 		pthread_mutex_unlock(&coder->stop_mutex);
 		// check if it is possible to compile
-		pthread_mutex_lock(&coder->left_dungle.mutex);
-		pthread_mutex_lock(&coder->right_dungle.mutex);
-		if (coder->left_dungle.holder == -1 &&
-			coder->right_dungle.holder == -1)
-		{
-			coder->left_dungle.holder = coder->id;
-			coder->right_dungle.holder = coder->id;
-			coder->status = COMPILING;
+		while (coder->status == WAITING) {
+			pthread_mutex_lock(&coder->left_dungle->mutex);
+			pthread_mutex_lock(&coder->right_dungle->mutex);
+			if (coder->left_dungle->holder == -1 
+				&& coder->right_dungle->holder == -1
+				&& coder->right_dungle->next_holder == coder->id
+				&& coder->left_dungle->next_holder == coder->id)
+			{
+				printf("coder %zu took dungle %u and %u\n", coder->id, coder->right_dungle->id,  coder->left_dungle->id);
+				coder->left_dungle->holder = coder->id;
+				coder->right_dungle->holder = coder->id;
+				coder->status = COMPILING;
+				gettimeofday(&tv, NULL);
+				coder->last_start_time = tv.tv_sec;
+				coder->compilation->last = tv.tv_sec;
+			}
+			if (coder->status == WAITING) {
+				printf("coder %zu waites for cond\n", coder->id);
+				pthread_cond_wait(&coder->left_dungle->cond, &coder->left_dungle->mutex);
+				printf("coder %zu got left dungle cond\n", coder->id);
+				pthread_cond_wait(&coder->right_dungle->cond, &coder->right_dungle->mutex);
+				printf("coder %zu got right dungle cond\n", coder->id);
+			}
+			pthread_mutex_unlock(&coder->left_dungle->mutex);
+			pthread_mutex_unlock(&coder->right_dungle->mutex);
 		}
-		pthread_mutex_unlock(&coder->compilation->mutex);
-		pthread_mutex_unlock(&coder->compilation->mutex);
-		if (coder->status == COMPILING) {
-			usleep(COMPILING_TIME);
-		} else {
-			// choose between refactor or dubuging
-			
-		}
-		pthread_mutex_lock(&coder->compilation->mutex);
 		gettimeofday(&tv, NULL);
-		coder->compilation->last = tv.tv_sec;
-		pthread_mutex_unlock(&coder->compilation->mutex);
-		
-		
-		
-		printf("coder %zu set his last compilation to %li\n", coder->id, coder->compilation->last);
-		usleep(time);
-		time += 1000000;
+		// printf("coder %zu could out of loop", coder->id);
+		if (coder->status == COMPILING
+			&& tv.tv_sec - coder->last_start_time > COMPILING_TIME) {
+			printf("coder %zu starts refactoring\n", coder->id);
+			pthread_mutex_lock(&coder->left_dungle->mutex);
+			pthread_mutex_lock(&coder->right_dungle->mutex);
+			coder->left_dungle->holder = -1;
+			coder->right_dungle->holder = -1;
+			pthread_cond_broadcast(&coder->left_dungle->cond);
+			pthread_cond_broadcast(&coder->right_dungle->cond);
+			pthread_mutex_unlock(&coder->left_dungle->mutex);
+			pthread_mutex_unlock(&coder->right_dungle->mutex);
+			coder->last_start_time = tv.tv_sec;
+			coder->status = REFACTORING;
+		}
+		else if (coder->status == REFACTORING
+			&& tv.tv_sec - coder->last_start_time > REFACTORING_TIME) {
+			coder->last_start_time = tv.tv_sec;
+			coder->status = DEBUGING;
+		}
+		else if (coder->status == DEBUGING
+			&& tv.tv_sec - coder->last_start_time > DEBUGING_TIME) {
+			coder->last_start_time = tv.tv_sec;
+			coder->status = WAITING;
+		}
 	}
 }
 
@@ -79,15 +104,14 @@ void *monitor_routine(void *arg) {
 				pthread_mutex_lock(&monitor->stop_mutex);
 				monitor->stop = true;
 				pthread_mutex_unlock(&monitor->stop_mutex);
-				printf("someone died\n");
+				printf("coder %i died\n", i);
 				return NULL;
 			}
 			pthread_mutex_unlock(&monitor->last_compilations[i].mutex);
 			
 			i++;
-			usleep(30);
 		}
-		
+		usleep(30);
 	}
 	
 	return NULL;
@@ -111,6 +135,7 @@ int main() {
 	int i = 0;
 	while (i < CODERS) {
 		dungles[i].holder = -1;
+		dungles[i].id = i;
 		pthread_mutex_init(&dungles[i].mutex,
 							NULL);
 		pthread_cond_init(&dungles[i].cond,
@@ -151,11 +176,11 @@ int main() {
 	// set dungles
 	i = 0;
 	while (i < CODERS) {
-		coders[i].left_dungle = dungles[i];
+		coders[i].left_dungle = &dungles[i];
 		if (i == CODERS - 1)
-			coders[i].right_dungle = dungles[0];
+			coders[i].right_dungle = &dungles[0];
 		else
-			coders[i].right_dungle = dungles[i + 1];
+			coders[i].right_dungle = &dungles[i + 1];
 		coders[i].id = i;
 		coders[i].status = WAITING;
 		coders[i].compilation = &monitor.last_compilations[i];
