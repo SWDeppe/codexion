@@ -4,7 +4,7 @@ CC := cc
 
 src_dir := coders/
 
-src_files := codexion.c
+src_files := codexion.c heapq.c heapq_helper.c parser.c
 
 includes_dir = $(src_dir)headers/
 
@@ -18,7 +18,7 @@ all:
 	$(CC) $(src_files:%=$(src_dir)%) $(ARGS) -I$(includes_dir) -o $(NAME)
 
 debug:
-	$(CC) $(src:%=$(src_dir)%) -g $(ARGS) -I$(includes_dir) -o $(NAME)
+	$(CC) $(src_files:%=$(src_dir)%) -g $(ARGS) -I$(includes_dir) -o $(NAME)
 
 
 clean:
