@@ -3,6 +3,7 @@
 
 #include <stdint.h>
 #include <pthread.h>
+#include <errno.h>
 typedef uint8_t error_t;
 
 # ifndef SCREEN_SIZE_W
@@ -28,7 +29,8 @@ enum error_e {
     CODER_DIED,
     GET_TIME_OF_DAY_ERROR,
     MALLOC_ERROR,
-    ERROR_LIST_END
+    ERROR_LIST_END,
+    PTHREAD_ERROR
 };
 
 

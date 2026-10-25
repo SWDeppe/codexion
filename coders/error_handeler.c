@@ -22,6 +22,8 @@ static void write_error(error_t error)
         printf("%sgettimeofday() function failed%s", RED, NORMAL);
     else if (error == MALLOC_ERROR)
         printf("%smemory allocation's function failed%s", RED, NORMAL);
+    else if (error == PTHREAD_ERROR)
+        printf("%spthread lib failed%s", RED, NORMAL);
 }
 
 uint32_t print_log(uint32_t space, errors_t *errors, uint32_t log)

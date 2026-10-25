@@ -1,0 +1,5 @@
+- [] Separate the code structure
+- [] Make the simulation stop correctly
+- [] Make the edf priority
+- [] Make the full error managment
+- [] Make it norm conforme

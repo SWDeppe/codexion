@@ -4,7 +4,7 @@ CC := cc
 
 src_dir := coders/
 
-src_files := codexion.c heapq.c heapq_helper.c parser.c realloc.c error_handeler.c
+src_files := codexion.c heapq.c heapq_helper.c parser.c realloc.c error_handeler.c coders.c sheduler.c monitor.c
 
 includes_dir = $(src_dir)headers/
 

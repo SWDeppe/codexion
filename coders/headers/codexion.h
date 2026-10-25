@@ -161,5 +161,14 @@ typedef struct codexion_s {
 }   codexion_t;
 
 
+typedef struct get_time_s {
+    uint64_t        *ms_time;
+} get_tm_t;
+
+error_t get_time(void **args);
+void ms_to_abstime(struct timespec *ts, uint64_t add_ms);
+void *sheduler_runtime(void *arg);
+void *monitor_runtime(void *arg);
+void *coder_runtime(void *arg);
 
 #endif
