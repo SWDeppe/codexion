@@ -18,8 +18,12 @@ enum can_take_e {
     NOT_ASKING,
     USING,
     WAITING,
+    STARTUP,
     // managed by sheduler
-    CAN_TAKE_DUNGLE
+    CAN_TAKE_DUNGLE,
+    // managed by monitor
+    ENOUTH_COMPILATIONS,
+    SIM_STOP,
 };
 
 enum waiting_time_indexs {
@@ -41,7 +45,17 @@ typedef struct coder_s {
     uint32_t        used_dungle[2];
 
     pthread_mutex_t compile_done_time_mtx;
-    uint32_t        compile_done_time;
+    pthread_mutex_t compile_done_time_cond;
+    uint64_t        compile_done_time;
+
+    uint32_t        demanded_compilations;
+    uint32_t        compile_count;
+
+    pthread_mutex_t *wake_monit_mtx;
+    pthread_cond_t  *wake_monit_cond;
+
+    pthread_mutex_t *wake_shedu_mtx;
+    pthread_cond_t  *wake_shedu_cond;
 
     pthread_mutex_t ask_time_mtx;
     uint64_t        ask_time;
@@ -50,7 +64,16 @@ typedef struct coder_s {
 
     uint32_t        waiting_times[3];
 
-    uint64_t        start;
+
+    pthread_mutex_t *error_stop_mtx;
+    uint8_t         *error_code;
+
+    
+
+    pthread_mutex_t *start_mtx;
+    pthread_cond_t  *start_cond;
+
+    uint64_t        *start;
     struct timeval  tv;
 }   coder_t;
 
@@ -65,6 +88,9 @@ typedef struct sheduler_s {
     uint8_t         **can_take_dungles;
     pthread_mutex_t **can_take_mtx;
     pthread_cond_t  **can_take_cond;
+        // optimisation
+    pthread_mutex_t wake_mtx;
+    pthread_cond_t  wake_cond;
 
     // verify the priority of the dungles
     // input
@@ -72,38 +98,67 @@ typedef struct sheduler_s {
     uint64_t        **ask_times;
 
     pthread_mutex_t **compile_done_times_mtx;
-    uint32_t        **compile_done_times;
+    uint64_t        **compile_done_times;
+
+    uint64_t        dungle_time;
     // output
     uint32_t        (*dungles_priority)[2];
 
     // set a deadlock free dungle assignement
     uint32_t        *dungles;
 
+    // stop simulation
+    pthread_mutex_t *error_stop_mtx;
+    uint8_t         *error_code;
+
     // time relevent structure
-    uint64_t        start;
+
+    pthread_mutex_t *start_mtx;
+    pthread_cond_t  *start_cond;
+
+    uint64_t        *start;
     struct timeval  tv;
 }   sheduler_t;
 
+typedef struct monitor_s {
+    uint32_t        nb_coders;
+    pthread_t       thread;
+
+    uint32_t        burount_time;
+    uint64_t        start;
+
+    uint64_t        *dies_in;
+    uint32_t        min_t;
+    
+    pthread_mutex_t wake_mtx;
+    pthread_cond_t  wake_cond;
+
+    pthread_mutex_t *wake_shedu_mtx;
+    pthread_cond_t  *wake_shedu_cond;
+
+    pthread_mutex_t **compile_done_times_mtx;
+    uint64_t        **compile_done_times;
+
+    pthread_mutex_t error_stop_mtx;
+    uint8_t         error_code;
+
+    uint8_t         **can_take_dungles;
+    pthread_mutex_t **can_take_mtx;
+    pthread_cond_t  **can_take_cond;
+
+    pthread_mutex_t start_mtx;
+    pthread_cond_t  start_cond;
+
+    struct timeval  tv;
+} monitor_t;
 
 typedef struct codexion_s {
     uint32_t        nb_coders;
     coder_t         *coders;
     sheduler_t      sheduler;
-//    monitor_t       monitor;
+    monitor_t       monitor;
+    errors_t        *err_manager;
 }   codexion_t;
-
-typedef struct monitor_s {
-    uint32_t        burnout_time;
-    pthread_mutex_t *compile_done_times_mtx;
-    uint32_t        *compile_done_times;
-
-
-    pthread_mutex_t error_stop_mtx;
-    uint8_t         error_code;
-
-    struct timeval  tv;
-} monitor_t;
-
 
 
 

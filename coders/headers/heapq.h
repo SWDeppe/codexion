@@ -11,7 +11,7 @@
 # include "errors.h"
 
 typedef struct heap_node_s {
-    uint32_t score;
+    uint64_t score;
     uint32_t id;
 } heap_node_t;
 
@@ -21,11 +21,20 @@ typedef struct heapq_s {
     uint32_t max_size;
 } heapq_t;
 
+
+typedef struct init_heappq_s {
+    heapq_t *heapq;
+    int base_size;
+    uint64_t *base_scores;
+    uint32_t *base_ids;
+    uint32_t max_size;
+} i_heapq_t;
+
 void swap(heap_node_t *nb1, heap_node_t *nb2);
-error_t  heapq_insert(heapq_t *heapq, uint32_t score, uint32_t id);
+error_t  heapq_insert(heapq_t *heapq, uint64_t score, uint32_t id);
 error_t  resize_heapq(heapq_t *heapq);
 uint32_t    pop(heapq_t *heapq);
-heapq_t init_heapq(int base_size, uint32_t *base_scores, uint32_t *base_ids, uint32_t max_size);
+error_t     init_heapq(void **);
 uint32_t get_parent(uint32_t child_index);
 uint32_t get_left(uint32_t parent);
 uint32_t get_right(uint32_t parent);

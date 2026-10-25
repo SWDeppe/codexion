@@ -1,21 +1,25 @@
 #include "heapq.h"
+#include "realloc.h"
 
 // Min-heap on score; pop returns the id of the lowest score
-heapq_t init_heapq(int base_size, uint32_t *base_scores, uint32_t *base_ids, uint32_t max_size) {
-    heapq_t     heapq;
+error_t init_heapq(void **args) {
     int         i;
+    i_heapq_t   *vars;
 
-    if (max_size < (uint32_t)base_size)
-        max_size = base_size;
-    heapq.heap_lst = (heap_node_t *)malloc(sizeof(heap_node_t) * max_size);
-    heapq.size = 0;
-    heapq.max_size = heapq.heap_lst ? max_size : 0;
+    vars = (i_heapq_t *)args;
+    if (vars->max_size < (uint32_t)vars->base_size)
+        vars->max_size = vars->base_size;
+    vars->heapq->heap_lst = (heap_node_t *)malloc(sizeof(heap_node_t) * vars->max_size);
+    if (!vars->heapq->heap_lst)
+        return MALLOC_ERROR;
+    vars->heapq->size = 0;
+    vars->heapq->max_size = vars->max_size;
     i = 0;
-    while (heapq.heap_lst && i < base_size) {
-        heapq_insert(&heapq, base_scores[i], base_ids[i]);
+    while (vars->heapq->heap_lst && i < vars->base_size) {
+        heapq_insert(vars->heapq, vars->base_scores[i], vars->base_ids[i]);
         i++;
     }
-    return heapq;
+    return SUCCESS;
 }
 
 uint32_t    pop(heapq_t *heapq) {
@@ -49,8 +53,13 @@ error_t resize_heapq(heapq_t *heapq) {
     heap_node_t *tmp;
     uint32_t    new_size;
 
-    new_size = heapq->max_size ? heapq->max_size * 2 : 2;
-    tmp = (heap_node_t *)realloc(heapq->heap_lst, sizeof(heap_node_t) * new_size); // TODO use malloc
+    if (heapq->max_size != 0)
+        new_size = heapq->max_size * 2;
+    else
+        new_size = 2;
+    tmp = (heap_node_t *)my_realloc(heapq->heap_lst,
+                                    sizeof(heap_node_t) * heapq->size,
+                                    sizeof(heap_node_t) * new_size);
     if (!tmp)
         return MALLOC_ERROR;
     heapq->heap_lst = tmp;
@@ -58,12 +67,14 @@ error_t resize_heapq(heapq_t *heapq) {
     return SUCCESS;
 }
 
-error_t heapq_insert(heapq_t *heapq, uint32_t score, uint32_t id) {
+error_t heapq_insert(heapq_t *heapq, uint64_t score, uint32_t id) {
     uint32_t    i;
 
     if (heapq->size >= heapq->max_size)
         if (resize_heapq(heapq) != SUCCESS)
             return MALLOC_ERROR;
+    // printf("score of 0: %lu\n", heapq->heap_lst[0].score);
+    // printf("score of 0: %lu\n", heapq->heap_lst[0].score);
     i = heapq->size++;
     heapq->heap_lst[i].score = score;
     heapq->heap_lst[i].id = id;
