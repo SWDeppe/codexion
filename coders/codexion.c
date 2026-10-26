@@ -160,8 +160,8 @@ error_t gen_base_data(codexion_t *codexion, pars_t parsed)
     codexion->sheduler.compile_done_times = (uint64_t **)malloc(sizeof(void *) * parsed.nb_coders);
 
     codexion->monitor.min_t = parsed.burnout_time;codexion->monitor.dies_in = malloc(sizeof(uint64_t) * parsed.nb_coders);
-    codexion->monitor.wake_shedu_cond = &codexion->monitor.wake_cond;
-    codexion->monitor.wake_shedu_mtx = &codexion->monitor.wake_mtx;
+    codexion->monitor.wake_shedu_cond = &codexion->sheduler.wake_cond;
+    codexion->monitor.wake_shedu_mtx = &codexion->sheduler.wake_mtx;
     codexion->monitor.dies_in = malloc(sizeof(uint64_t) * parsed.nb_coders);
 
     // init monitor

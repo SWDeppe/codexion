@@ -46,6 +46,7 @@ void *coder_runtime(void *arg)
             pthread_mutex_lock(&coder->can_take_mtx);
             coder->can_take_dungles = ENOUTH_COMPILATIONS;
             pthread_mutex_unlock(&coder->can_take_mtx);
+            return NULL;
         }
         else
         {
@@ -65,7 +66,7 @@ void *coder_runtime(void *arg)
         {
             // print("error occured", NULL, 0);
             pthread_mutex_unlock(coder->error_stop_mtx);
-            pthread_mutex_unlock(&coder->can_take_mtx);
+            // pthread_mutex_unlock(&coder->can_take_mtx);
             return NULL;
         }
         pthread_mutex_unlock(coder->error_stop_mtx);
@@ -83,7 +84,7 @@ void *coder_runtime(void *arg)
         {
             // print("error occured", NULL, 0);
             pthread_mutex_unlock(coder->error_stop_mtx);
-            pthread_mutex_unlock(&coder->can_take_mtx);
+            // pthread_mutex_unlock(&coder->can_take_mtx);
             return NULL;
         }
         pthread_mutex_unlock(coder->error_stop_mtx);
@@ -100,7 +101,6 @@ void *coder_runtime(void *arg)
         
         // start compiling
         print("%li coder %u is Compiling\n",  (uint32_t []){ ms_time - *coder->start, coder->id }, 2);
-        usleep(coder->waiting_times[COMPILING] * 1000);
         
         coder->compile_count++;
         
@@ -115,6 +115,7 @@ void *coder_runtime(void *arg)
         pthread_cond_broadcast(coder->wake_monit_cond);
         pthread_mutex_unlock(coder->wake_monit_mtx);
 
+        usleep(coder->waiting_times[COMPILING] * 1000);
         pthread_mutex_lock(coder->wake_shedu_mtx);
         pthread_cond_broadcast(coder->wake_shedu_cond);
         pthread_mutex_unlock(coder->wake_shedu_mtx);

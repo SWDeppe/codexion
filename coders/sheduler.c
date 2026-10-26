@@ -11,6 +11,23 @@ static uint32_t right(uint32_t i, uint32_t max)
 }
 
 
+
+error_t is_stop(void **args)
+{
+    sheduler_t  *sheduler;
+    uint8_t     *stop;
+
+    sheduler = (sheduler_t *)args[0];
+    stop = (uint8_t *)args[1];
+    if (pthread_mutex_lock(sheduler->error_stop_mtx) != SUCCESS)
+        return PTHREAD_ERROR;
+    if (*sheduler->error_code != SUCCESS)
+        *stop = 1;
+    if (pthread_mutex_unlock(sheduler->error_stop_mtx) != SUCCESS)
+        return PTHREAD_ERROR;
+    return SUCCESS;
+}
+
 typedef struct assigne_one_s{
     uint32_t    *could_compile;
     sheduler_t  *sh;
@@ -21,10 +38,14 @@ static error_t assigne_one(void **args)
     uint32_t    i;
     uint32_t    count;
     assign_t    *vars;
+    uint8_t     stop;
 
     vars = (assign_t *)args;
-    i = 0;
     *vars->could_compile = 0;
+    run("sheduler", is_stop, (void *[]){vars->sh, &stop});
+    if (stop)
+        return CODER_DIED;
+    i = 0;
     while (i < vars->sh->nb_coders)
     {
         count = 0;
@@ -46,7 +67,10 @@ static error_t assigne_one(void **args)
 
             // another priority ?
             if (!((count >> 1) & 1))
+            {
+                i++;                
                 continue;
+            }
             if (count & 1)
             {
                 pthread_mutex_lock(vars->sh->ask_times_mtx[i]);
@@ -111,7 +135,7 @@ static error_t error_free(void **args)
     if (vars->now - *vars->sheduler->compile_done_times[vars->i] 
         >= vars->sheduler->dungle_time)
         vars->sheduler->dungles[vars->dungle] = DUNGLE_UNUSED;
-    else if (*vars->next > vars->sheduler->dungle_time - vars->now - *vars->sheduler->compile_done_times[vars->i])
+    else if (*vars->next > vars->sheduler->dungle_time - (vars->now - *vars->sheduler->compile_done_times[vars->i]))
         *vars->next = vars->sheduler->dungle_time - (vars->now - *vars->sheduler->compile_done_times[vars->i]);
 
     if (pthread_mutex_unlock(vars->sheduler->compile_done_times_mtx[vars->i]) != SUCCESS)
@@ -127,13 +151,13 @@ static void set_dungles_free(uint64_t *next,
     if (sheduler->dungles[left(i, sheduler->nb_coders)] == i)
     {
         run("sheduler", get_time, (void **)&(get_tm_t){&now});
-        run("sheduler err", error_free, (void **)&(error_free_t){sheduler, i,
+        run("sheduler", error_free, (void **)&(error_free_t){sheduler, i,
             left(i, sheduler->nb_coders), now, next});
     }
     if (sheduler->dungles[i] == i)
     {
         run("sheduler", get_time, (void **)&(get_tm_t){&now});
-        run("sheduler err", error_free, (void **)&(error_free_t){sheduler, i,
+        run("sheduler", error_free, (void **)&(error_free_t){sheduler, i,
             i, now, next});
     }
 }
@@ -216,21 +240,31 @@ static error_t wait_next(void **args)
     return SUCCESS;
 }
 
-void *sheduler_runtime(void *arg) {
+void *sheduler_runtime(void *arg)
+{
     sheduler_t *sheduler;
     uint32_t   could_compile;
     uint64_t    next;
+    uint8_t    stop;
 
     sheduler = (sheduler_t *)arg;
+    stop = 0;
     run("sheduler", start, (void **)sheduler);    
-    while (1) {
+    while (1)
+    {
+        run("sheduler", is_stop, (void *[]){sheduler, &stop});
+        if (stop == 1)
+            return NULL;
         run("sheduler", set_dungles, (void*[]){sheduler, &next});
 
         could_compile = 1;
-
         while (could_compile)
-            run("sheduler ass", assigne_one, (void **)&(assign_t){&could_compile, sheduler});
+            run("sheduler", assigne_one, (void **)&(assign_t){&could_compile, sheduler});
 
-        run("sheduler wait", wait_next, (void **)sheduler);
+        run("sheduler", is_stop, (void *[]){sheduler, &stop});
+        if (stop == 1)
+            return NULL;
+
+        run("sheduler", wait_next, (void **)sheduler);
     }
 }

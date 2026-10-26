@@ -46,19 +46,25 @@ void *monitor_runtime(void *arg)
             if (*monitor->can_take_dungles[i] == ENOUTH_COMPILATIONS)
             {
                 coder_done_count++;
+                pthread_mutex_unlock(monitor->can_take_mtx[i]);
+
+                i++;
                 continue;
             }
             pthread_mutex_unlock(monitor->can_take_mtx[i]);
             run("Monitor", get_time, (void **)&(get_tm_t){&ms_time});
             pthread_mutex_lock(monitor->compile_done_times_mtx[i]);
-            if (*monitor->compile_done_times[i] != 0 && ms_time - *monitor->compile_done_times[i] >= monitor->burount_time)
+            if (*monitor->compile_done_times[i] != 0
+                && ms_time - *monitor->compile_done_times[i] >= monitor->burount_time)
             {
+                pthread_mutex_lock(&monitor->error_stop_mtx);
                 monitor->error_code = CODER_DIED;
                 print("coder %i died at %i !", (uint32_t []){i, (uint32_t)ms_time - monitor->start}, 2);
+                pthread_mutex_unlock(&monitor->error_stop_mtx);
             }
             else
             {
-                monitor->dies_in[i] = ms_time - *monitor->compile_done_times[i];
+                monitor->dies_in[i] = monitor->burount_time - (ms_time - *monitor->compile_done_times[i]);
                 if (monitor->dies_in[i] < monitor->min_t)
                     monitor->min_t = monitor->dies_in[i];
             }
@@ -66,8 +72,10 @@ void *monitor_runtime(void *arg)
             i++;
         }
         // stop if everyone finished
+        pthread_mutex_lock(&monitor->error_stop_mtx);
         if (coder_done_count == monitor->nb_coders)
             monitor->error_code = SIM_STOP;
+        pthread_mutex_unlock(&monitor->error_stop_mtx);
 
         // stop simulation if error is detected
         pthread_mutex_lock(&monitor->error_stop_mtx);
@@ -83,6 +91,7 @@ void *monitor_runtime(void *arg)
                 i++;
             }
             pthread_mutex_unlock(&monitor->error_stop_mtx);
+            pthread_cond_broadcast(monitor->wake_shedu_cond);
             return NULL;
         }
         pthread_mutex_unlock(&monitor->error_stop_mtx);
