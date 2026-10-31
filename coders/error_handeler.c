@@ -112,7 +112,7 @@ void *manager_runtime(void *arg)
         if (errors->logs_count > 0 || errors->owner_count > 0)
             error_table(errors);
         pthread_mutex_unlock(&errors->manager_mutex);
-        usleep(10000);
+        usleep(100000);
     }
     return NULL;
 }
