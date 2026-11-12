@@ -18,15 +18,21 @@ error_t get_time(void **args)
 }
 
 
-void ms_to_abstime(struct timespec *ts, uint64_t add_ms)
+error_t ms_to_abstime(void **args)
 {
+    struct timespec *ts;
+    uint64_t        *add_ms;
     struct timeval  tv;
     uint64_t        us;
 
-    gettimeofday(&tv, NULL);
-    us = (uint64_t)tv.tv_usec + (add_ms % 1000) * 1000;
-    ts->tv_sec = tv.tv_sec + add_ms / 1000 + us / 1000000;
+    ts = (struct timespec *)args[0];
+    add_ms = (uint64_t *)args[1];
+    if (gettimeofday(&tv, NULL) != SUCCESS)
+        return GET_TIME_OF_DAY_ERROR;
+    us = (uint64_t)tv.tv_usec + (*add_ms % 1000) * 1000;
+    ts->tv_sec = tv.tv_sec + *add_ms / 1000 + us / 1000000;
     ts->tv_nsec = (us % 1000000) * 1000;
+    return SUCCESS;
 }
 
 
@@ -112,6 +118,9 @@ error_t gen_base_data(codexion_t *codexion, pars_t parsed)
     pthread_mutex_init(&codexion->monitor.start_mtx, NULL); // check errors
     pthread_cond_init(&codexion->monitor.start_cond, NULL); // check errors
 
+    pthread_mutex_init(&codexion->sheduler.ready_mtx, NULL); // check errors
+    pthread_cond_init(&codexion->sheduler.ready_cond, NULL); // check errors
+    
     while (i < parsed.nb_coders)
     {
         gen_coder(&codexion->coders[i], parsed, i); // TODO: add proper error handeling
@@ -136,6 +145,7 @@ error_t gen_base_data(codexion_t *codexion, pars_t parsed)
     codexion->monitor.can_take_cond = (pthread_cond_t **)malloc(sizeof(void *) * parsed.nb_coders);
     
     codexion->monitor.can_take_cond = (pthread_cond_t **)malloc(sizeof(void *) * parsed.nb_coders);
+    codexion->monitor.coders_done = (uint8_t *)malloc(sizeof(void *) * parsed.nb_coders);
     
     codexion->sheduler.can_take_dungles = (uint8_t **)malloc(sizeof(void *) * parsed.nb_coders);
     codexion->monitor.can_take_dungles = (uint8_t **)malloc(sizeof(void *) * parsed.nb_coders);
@@ -169,7 +179,14 @@ error_t gen_base_data(codexion_t *codexion, pars_t parsed)
     pthread_mutex_init(&codexion->monitor.error_stop_mtx, NULL); // check errors
     codexion->sheduler.error_code = &codexion->monitor.error_code;
     codexion->sheduler.error_stop_mtx = &codexion->monitor.error_stop_mtx;
+    codexion->sheduler.ready = 0;
+
     codexion->monitor.nb_coders = parsed.nb_coders;
+
+    codexion->monitor.shedu_ready = &codexion->sheduler.ready;
+    codexion->monitor.shedu_ready_mtx = &codexion->sheduler.ready_mtx;
+    codexion->monitor.shedu_ready_cond = &codexion->sheduler.ready_cond;
+
     codexion->monitor.error_code = SUCCESS;
     codexion->monitor.start = 0;
     i = 0;
@@ -199,6 +216,7 @@ error_t gen_base_data(codexion_t *codexion, pars_t parsed)
         codexion->sheduler.dungles_priority[i][1] = FREE_SPACE;
         codexion->sheduler.nb_coders = parsed.nb_coders;
         
+        codexion->monitor.coders_done[i] = 0;
         i++;
     }
 

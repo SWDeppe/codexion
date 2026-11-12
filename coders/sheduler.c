@@ -267,29 +267,44 @@ error_t set_dungles(void **args)
     return SUCCESS;
 }
 
+// static error_t start(void **args)
+// {
+//     sheduler_t  *sh;
+
+//     sh = (sheduler_t  *)args;
+//     if (pthread_mutex_lock(sh->start_mtx) != SUCCESS)
+//         return PTHREAD_ERROR;
+
+//     while (*sh->start == 0)
+//         if (pthread_cond_wait(sh->start_cond, sh->start_mtx) != SUCCESS)
+//             return PTHREAD_ERROR;
+    
+//     if (pthread_mutex_unlock(sh->start_mtx) != SUCCESS)
+//         return PTHREAD_ERROR;
+
+//     if (pthread_mutex_lock(sh->start_mtx) != SUCCESS)
+//         return PTHREAD_ERROR;
+//     if (pthread_cond_wait(sh->start_cond, sh->start_mtx) != SUCCESS)
+//         return PTHREAD_ERROR;
+//     if (pthread_mutex_unlock(sh->start_mtx) != SUCCESS)
+//         return PTHREAD_ERROR;
+//     return SUCCESS;
+// }
+
 static error_t start(void **args)
 {
     sheduler_t  *sh;
 
     sh = (sheduler_t  *)args;
-    if (pthread_mutex_lock(sh->start_mtx) != SUCCESS)
-        return PTHREAD_ERROR;
-
-    while (*sh->start == 0)
-        if (pthread_cond_wait(sh->start_cond, sh->start_mtx) != SUCCESS)
-            return PTHREAD_ERROR;
-    
-    if (pthread_mutex_unlock(sh->start_mtx) != SUCCESS)
-        return PTHREAD_ERROR;
-
-    if (pthread_mutex_lock(sh->start_mtx) != SUCCESS)
-        return PTHREAD_ERROR;
-    if (pthread_cond_wait(sh->start_cond, sh->start_mtx) != SUCCESS)
-        return PTHREAD_ERROR;
-    if (pthread_mutex_unlock(sh->start_mtx) != SUCCESS)
-        return PTHREAD_ERROR;
+    pthread_mutex_lock(&sh->ready_mtx);
+    sh->ready = 1;
+    pthread_mutex_unlock(&sh->ready_mtx);
+    pthread_mutex_lock(sh->start_mtx);
+    pthread_cond_wait(sh->start_cond, sh->start_mtx);
+    pthread_mutex_unlock(sh->start_mtx);
     return SUCCESS;
 }
+
 
 static error_t wait_next(void **args)
 {
@@ -310,7 +325,7 @@ static error_t wait_next(void **args)
     }
     else
     {
-        ms_to_abstime(&ts, next); // use run
+        run("sheduler", ms_to_abstime, (void *[]){&ts, &next});
         err = pthread_cond_timedwait(&sheduler->wake_cond, &sheduler->wake_mtx, &ts);
         if (err != SUCCESS && err != ETIMEDOUT)
            return PTHREAD_ERROR;

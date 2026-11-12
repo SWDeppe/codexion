@@ -115,8 +115,13 @@ typedef struct sheduler_s {
 
     pthread_mutex_t *start_mtx;
     pthread_cond_t  *start_cond;
-
     uint64_t        *start;
+
+
+    pthread_mutex_t ready_mtx;
+    pthread_cond_t  ready_cond;
+    uint8_t         ready;
+    
     struct timeval  tv;
 }   sheduler_t;
 
@@ -127,8 +132,8 @@ typedef struct monitor_s {
     uint32_t        burount_time;
     uint64_t        start;
 
-    uint64_t        *dies_in;
-    uint32_t        min_t;
+    int64_t         *dies_in;
+    uint64_t        min_t;
     
     pthread_mutex_t wake_mtx;
     pthread_cond_t  wake_cond;
@@ -149,6 +154,13 @@ typedef struct monitor_s {
     pthread_mutex_t start_mtx;
     pthread_cond_t  start_cond;
 
+    pthread_mutex_t *shedu_ready_mtx;
+    pthread_cond_t  *shedu_ready_cond;
+    uint8_t         *shedu_ready;
+
+    uint8_t         *coders_done;
+    uint32_t        coders_done_count;
+
     struct timeval  tv;
 } monitor_t;
 
@@ -166,7 +178,7 @@ typedef struct get_time_s {
 } get_tm_t;
 
 error_t get_time(void **args);
-void ms_to_abstime(struct timespec *ts, uint64_t add_ms);
+error_t ms_to_abstime(void **args);
 void *sheduler_runtime(void *arg);
 void *monitor_runtime(void *arg);
 void *coder_runtime(void *arg);
