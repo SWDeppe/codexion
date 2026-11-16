@@ -40,6 +40,9 @@ for compiling with the debug flag you can run
 make debug
 ```
 
+Simulation messages are appended to `codexion.log` in the current working
+directory as they are generated. The file is not cleared between runs.
+
 ## Resources
 
 For this project i've been looking at:

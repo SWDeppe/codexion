@@ -1,365 +1,106 @@
+/* ************************************************************************** */
+/*                                                                            */
+/*                                                        :::      ::::::::   */
+/*   sheduler.c                                         :+:      :+:    :+:   */
+/*                                                    +:+ +:+         +:+     */
+/*   By: sdeppe <sdeppe@student.42.fr>              +#+  +:+       +#+        */
+/*                                                +#+#+#+#+#+   +#+           */
+/*   Created: 2026/11/12 08:11:00 by sdeppe            #+#    #+#             */
+/*   Updated: 2026/11/13 05:55:59 by sdeppe           ###   ########.fr       */
+/*                                                                            */
+/* ************************************************************************** */
+
 #include "codexion.h"
+#include "parser.h"
 
-static uint32_t left(uint32_t i, uint32_t max)
+t_error	is_stop(void **args)
 {
-    return (i - 1) + (max * (i == 0));
+	t_sheduler	*sheduler;
+	uint8_t		*stop;
+
+	sheduler = (t_sheduler *)args[0];
+	stop = (uint8_t *)args[1];
+	if (pthread_mutex_lock(sheduler->error_stop_mtx) != SUCCESS)
+		return (PTHREAD_ERROR);
+	*stop = 0;
+	if (*sheduler->error_code != SUCCESS)
+		*stop = 1;
+	if (pthread_mutex_unlock(sheduler->error_stop_mtx) != SUCCESS)
+		return (PTHREAD_ERROR);
+	return (SUCCESS);
 }
 
-static uint32_t right(uint32_t i, uint32_t max)
+static t_error	start(void **args)
 {
-    return (i + 1) % max;
+	t_sheduler	*sh;
+
+	sh = (t_sheduler *)args;
+	if (pthread_mutex_lock(&sh->ready_mtx) != SUCCESS)
+		return (PTHREAD_ERROR);
+	sh->ready = 1;
+	if (pthread_mutex_unlock(&sh->ready_mtx) != SUCCESS)
+		return (PTHREAD_ERROR);
+	if (pthread_mutex_lock(sh->start_mtx) != SUCCESS)
+		return (PTHREAD_ERROR);
+	if (pthread_cond_wait(sh->start_cond, sh->start_mtx) != SUCCESS)
+		return (PTHREAD_ERROR);
+	if (pthread_mutex_unlock(sh->start_mtx) != SUCCESS)
+		return (PTHREAD_ERROR);
+	return (SUCCESS);
 }
 
-
-
-error_t is_stop(void **args)
+static t_error	wait_next(void **args)
 {
-    sheduler_t  *sheduler;
-    uint8_t     *stop;
+	t_sheduler		*sh;
+	uint64_t		next;
+	int				err;
+	struct timespec	ts;
 
-    sheduler = (sheduler_t *)args[0];
-    stop = (uint8_t *)args[1];
-    if (pthread_mutex_lock(sheduler->error_stop_mtx) != SUCCESS)
-        return PTHREAD_ERROR;
-    *stop = 0;
-    if (*sheduler->error_code != SUCCESS)
-        *stop = 1;
-    if (pthread_mutex_unlock(sheduler->error_stop_mtx) != SUCCESS)
-        return PTHREAD_ERROR;
-    return SUCCESS;
+	sh = (t_sheduler *)args;
+	run("sheduler", set_dungles, (void *[]){
+		sh, &next});
+	if (pthread_mutex_lock(&sh->wake_mtx) != SUCCESS)
+		return (PTHREAD_ERROR);
+	if (next == sh->dungle_time + 1)
+	{
+		if (pthread_cond_wait(&sh->wake_cond, &sh->wake_mtx) != SUCCESS)
+			return (PTHREAD_ERROR);
+	}
+	else
+	{
+		run("sheduler", ms_to_abstime, (void *[]){&ts, &next});
+		err = pthread_cond_timedwait(&sh->wake_cond, &sh->wake_mtx, &ts);
+		if (err != SUCCESS && err != ETIMEDOUT)
+			return (PTHREAD_ERROR);
+	}
+	if (pthread_mutex_unlock(&sh->wake_mtx) != SUCCESS)
+		return (PTHREAD_ERROR);
+	return (SUCCESS);
 }
 
-static error_t get_dung_waiters_byte(void **args)
-// so here wer are using 3 bits
-// 1st represent the left coder 2nd represent the coder[i], 3rd the right coder
+void	*sheduler_runtime(void *arg)
 {
-    sheduler_t  *sh;
-    uint32_t    *i;
-    uint8_t    *count;
+	t_sheduler	*sheduler;
+	uint32_t	could_compile;
+	uint64_t	next;
+	uint8_t		stop;
 
-    sh = (sheduler_t *)args[0];
-    i = (uint32_t *)args[1];
-    count = (uint8_t *)args[2];
-    if (pthread_mutex_lock(sh->can_take_mtx[left(*i, sh->nb_coders)]) != SUCCESS)
-        return PTHREAD_ERROR;
-    *count +=(*sh->can_take_dungles[left(*i, sh->nb_coders)] == WAITING);
-    if (pthread_mutex_unlock(sh->can_take_mtx[left(*i, sh->nb_coders)]) != SUCCESS)
-        return PTHREAD_ERROR;
-    if (pthread_mutex_lock(sh->can_take_mtx[*i]) != SUCCESS)
-        return PTHREAD_ERROR;
-    *count += (*sh->can_take_dungles[*i] == WAITING) * 2;
-    if (pthread_mutex_unlock(sh->can_take_mtx[*i]) != SUCCESS)
-        return PTHREAD_ERROR;
-    if (pthread_mutex_lock(sh->can_take_mtx[right(*i, sh->nb_coders)]) != SUCCESS)
-        return PTHREAD_ERROR;
-    *count += (*sh->can_take_dungles[right(*i, sh->nb_coders)] == WAITING) * 4;
-    if (pthread_mutex_unlock(sh->can_take_mtx[right(*i, sh->nb_coders)]) != SUCCESS)
-        return PTHREAD_ERROR;
-    return SUCCESS;
-}
-
-error_t broadcast_new_possesor(void **args)
-{
-    sheduler_t  *sh;
-    int         res;
-    uint32_t    *could_compile;
-    uint32_t    *i;
-
-    sh = (sheduler_t *)args[0];
-    could_compile = (uint32_t *)args[1];
-    i = (uint32_t *)args[2];
-    *could_compile = 1;
-    // assigne the dungle
-    sh->dungles[*i] = *i;
-    sh->dungles[left(*i, sh->nb_coders)] = *i;
-    if (pthread_mutex_lock(sh->can_take_mtx[*i]) != SUCCESS)
-        return PTHREAD_ERROR;
-    *sh->can_take_dungles[*i] = CAN_TAKE_DUNGLE;
-    if (pthread_mutex_unlock(sh->can_take_mtx[*i]) != SUCCESS)
-        return PTHREAD_ERROR;
-
-    res = pthread_cond_broadcast(sh->can_take_cond[*i]);
-    if (!(res == SUCCESS))
-        return PTHREAD_ERROR;
-    return SUCCESS;
-}
-
-typedef struct assigne_one_s{
-    uint32_t    *could_compile;
-    sheduler_t  *sh;
-} assign_t;
-
-error_t is_left_priority(void **args)
-{
-    sheduler_t  *sh;
-    uint8_t     *count;
-    uint32_t    *i;
-    char        *res;
-
-    sh = (sheduler_t  *)args[0];
-    count = (uint8_t *)args[1];
-    i = (uint32_t *)args[2];
-    res = (char  *)args[3];
-    if (*count & 1)
-    {
-        if (pthread_mutex_lock(sh->ask_times_mtx[*i]) != SUCCESS)
-            return PTHREAD_ERROR;
-        if (pthread_mutex_lock(sh->ask_times_mtx[left(*i, sh->nb_coders)]) != SUCCESS)
-            return PTHREAD_ERROR;
-        if (*sh->ask_times[*i] > *sh->ask_times[left(*i, sh->nb_coders)])
-            *res = 0;
-        if (pthread_mutex_unlock(sh->ask_times_mtx[left(*i, sh->nb_coders)]) != SUCCESS)
-            return PTHREAD_ERROR;
-        if (pthread_mutex_unlock(sh->ask_times_mtx[*i]) != SUCCESS)
-            return PTHREAD_ERROR;
-    }
-    return SUCCESS;
-}
-
-error_t is_right_priority(void **args)
-{
-    sheduler_t  *sh;
-    uint8_t     *count;
-    uint32_t    *i;
-    char        *res;
-
-    sh = (sheduler_t  *)args[0];
-    count = (uint8_t *)args[1];
-    i = (uint32_t *)args[2];
-    res = (char  *)args[3];
-    if ((*count >> 2) & 1)
-    {
-        if (pthread_mutex_lock(sh->ask_times_mtx[*i]) != SUCCESS)
-            return PTHREAD_ERROR;
-        if (pthread_mutex_lock(sh->ask_times_mtx[right(*i, sh->nb_coders)]) != SUCCESS)
-            return PTHREAD_ERROR;
-        if (*sh->ask_times[*i] > *sh->ask_times[right(*i, sh->nb_coders)])
-            *res = 1;
-        if (pthread_mutex_unlock(sh->ask_times_mtx[right(*i, sh->nb_coders)]) != SUCCESS)
-            return PTHREAD_ERROR;
-        if (pthread_mutex_unlock(sh->ask_times_mtx[*i]) != SUCCESS)
-            return PTHREAD_ERROR;
-    }
-    return SUCCESS;
-}
-
-char is_prioritized_conflict(uint8_t count, uint32_t i, sheduler_t *sh)
-{
-    char    res;
-
-    run("sheduler", get_dung_waiters_byte, (void *[]){sh, &i, &count});
-    // is_curent()
-    if (!((count >> 1) & 1))
-        return 1;
-    res = 0;
-    run("sheduler", is_left_priority, (void *[]){sh, &count, &i, &res});
-    if (res == 1)
-        return 1;
-    run("sheduler", is_right_priority, (void *[]){sh, &count, &i, &res});
-    if (res == 1)
-        return 1;
-    return 0;
-}
-          
-
-static error_t assigne_one(void **args)
-{
-    uint32_t    i;
-    uint8_t    count;
-    assign_t    *vars;
-    uint8_t     stop;
-
-    vars = (assign_t *)args;
-    *vars->could_compile = 0;
-    stop = 0;
-    run("sheduler", is_stop, (void *[]){vars->sh, &stop});
-    if (stop)
-        return CODER_DIED;
-    i = 0;
-    while (i < vars->sh->nb_coders)
-    {
-        count = 0;
-        if (vars->sh->dungles[i] == DUNGLE_UNUSED
-            && vars->sh->dungles[left(i, vars->sh->nb_coders)] == DUNGLE_UNUSED)
-        {
-            if (is_prioritized_conflict(count, i, vars->sh))
-            {
-                i++;
-                continue;
-            }
-            run("sheduler", broadcast_new_possesor, (void *[]){vars->sh, vars->could_compile, &i});
-            return SUCCESS;
-        }
-        i++;
-    }
-    return SUCCESS;
-}
-
-typedef struct error_free_s {
-
-    sheduler_t  *sheduler;
-    uint32_t    i;
-    uint32_t    dungle;
-    uint64_t    now;
-    uint64_t    *next;
-}   error_free_t;
-
-static error_t error_free(void **args)
-{
-    error_free_t    *vars;
-
-    vars = (error_free_t *)args;
-    if (pthread_mutex_lock(vars->sheduler->compile_done_times_mtx[vars->i]) != SUCCESS)
-        return PTHREAD_ERROR;
-
-    if (vars->now - *vars->sheduler->compile_done_times[vars->i] 
-        >= vars->sheduler->dungle_time)
-        vars->sheduler->dungles[vars->dungle] = DUNGLE_UNUSED;
-    else if (*vars->next > vars->sheduler->dungle_time - (vars->now - *vars->sheduler->compile_done_times[vars->i]))
-        *vars->next = vars->sheduler->dungle_time - (vars->now - *vars->sheduler->compile_done_times[vars->i]);
-
-    if (pthread_mutex_unlock(vars->sheduler->compile_done_times_mtx[vars->i]) != SUCCESS)
-        return PTHREAD_ERROR;
-    return SUCCESS;
-}
-
-static void set_dungles_free(uint64_t *next,
-    sheduler_t *sheduler, uint32_t i)
-{
-    uint64_t    now;
-
-    if (sheduler->dungles[left(i, sheduler->nb_coders)] == i)
-    {
-        run("sheduler", get_time, (void **)&(get_tm_t){&now});
-        run("sheduler", error_free, (void **)&(error_free_t){sheduler, i,
-            left(i, sheduler->nb_coders), now, next});
-    }
-    if (sheduler->dungles[i] == i)
-    {
-        run("sheduler", get_time, (void **)&(get_tm_t){&now});
-        run("sheduler", error_free, (void **)&(error_free_t){sheduler, i,
-            i, now, next});
-    }
-}
-
-error_t set_dungles(void **args)
-{
-    uint32_t    i;
-    sheduler_t  *sheduler;
-    uint64_t    *next;
-
-    sheduler = (sheduler_t *)args[0];
-    next = (uint64_t *)args[1];
-    i = 0;
-    *next = sheduler->dungle_time + 1;
-    while (i < sheduler->nb_coders)
-    {
-        if (pthread_mutex_lock(sheduler->can_take_mtx[i]) != SUCCESS)
-            return PTHREAD_ERROR;
-
-        if (*sheduler->can_take_dungles[i] != USING && *sheduler->can_take_dungles[i] != CAN_TAKE_DUNGLE)
-            set_dungles_free(next, sheduler, i);
-
-        if (pthread_mutex_unlock(sheduler->can_take_mtx[i]) != SUCCESS)
-            return PTHREAD_ERROR;
-        i++;
-    }
-    return SUCCESS;
-}
-
-// static error_t start(void **args)
-// {
-//     sheduler_t  *sh;
-
-//     sh = (sheduler_t  *)args;
-//     if (pthread_mutex_lock(sh->start_mtx) != SUCCESS)
-//         return PTHREAD_ERROR;
-
-//     while (*sh->start == 0)
-//         if (pthread_cond_wait(sh->start_cond, sh->start_mtx) != SUCCESS)
-//             return PTHREAD_ERROR;
-    
-//     if (pthread_mutex_unlock(sh->start_mtx) != SUCCESS)
-//         return PTHREAD_ERROR;
-
-//     if (pthread_mutex_lock(sh->start_mtx) != SUCCESS)
-//         return PTHREAD_ERROR;
-//     if (pthread_cond_wait(sh->start_cond, sh->start_mtx) != SUCCESS)
-//         return PTHREAD_ERROR;
-//     if (pthread_mutex_unlock(sh->start_mtx) != SUCCESS)
-//         return PTHREAD_ERROR;
-//     return SUCCESS;
-// }
-
-static error_t start(void **args)
-{
-    sheduler_t  *sh;
-
-    sh = (sheduler_t  *)args;
-    pthread_mutex_lock(&sh->ready_mtx);
-    sh->ready = 1;
-    pthread_mutex_unlock(&sh->ready_mtx);
-    pthread_mutex_lock(sh->start_mtx);
-    pthread_cond_wait(sh->start_cond, sh->start_mtx);
-    pthread_mutex_unlock(sh->start_mtx);
-    return SUCCESS;
-}
-
-
-static error_t wait_next(void **args)
-{
-    sheduler_t *sheduler;
-    uint64_t   next;
-    int        err;
-    struct timespec ts;
-
-    sheduler = (sheduler_t *)args;
-    run("sheduler", set_dungles, (void*[]){sheduler, &next});
-
-    if (pthread_mutex_lock(&sheduler->wake_mtx) != SUCCESS)
-        return PTHREAD_ERROR;
-    if (next == sheduler->dungle_time + 1)
-    {
-        if (pthread_cond_wait(&sheduler->wake_cond, &sheduler->wake_mtx) != SUCCESS)
-            return PTHREAD_ERROR;
-    }
-    else
-    {
-        run("sheduler", ms_to_abstime, (void *[]){&ts, &next});
-        err = pthread_cond_timedwait(&sheduler->wake_cond, &sheduler->wake_mtx, &ts);
-        if (err != SUCCESS && err != ETIMEDOUT)
-           return PTHREAD_ERROR;
-    }
-    if (pthread_mutex_unlock(&sheduler->wake_mtx) != SUCCESS)
-        return PTHREAD_ERROR;
-    return SUCCESS;
-}
-
-void *sheduler_runtime(void *arg)
-{
-    sheduler_t *sheduler;
-    uint32_t   could_compile;
-    uint64_t    next;
-    uint8_t    stop;
-
-    sheduler = (sheduler_t *)arg;
-    stop = 0;
-    run("sheduler", start, (void **)sheduler);    
-    while (1)
-    {
-        run("sheduler", is_stop, (void *[]){sheduler, &stop});
-        if (stop == 1)
-            return NULL;
-        run("sheduler", set_dungles, (void*[]){sheduler, &next});
-
-        could_compile = 1;
-        while (could_compile)
-            run("sheduler", assigne_one, (void **)&(assign_t){&could_compile, sheduler});
-
-        run("sheduler", is_stop, (void *[]){sheduler, &stop});
-        if (stop == 1)
-            return NULL;
-
-        run("sheduler", wait_next, (void **)sheduler);
-    }
+	sheduler = (t_sheduler *)arg;
+	stop = 0;
+	run("sheduler", start, (void **)sheduler);
+	while (1)
+	{
+		run("sheduler", is_stop, (void *[]){sheduler, &stop});
+		if (stop == 1)
+			return (NULL);
+		run("sheduler", set_dungles, (void *[]){sheduler, &next});
+		could_compile = 1;
+		while (could_compile)
+			run("sheduler", assigne_one,
+				(void **)&(t_assign){&could_compile, sheduler});
+		run("sheduler", is_stop, (void *[]){sheduler, &stop});
+		if (stop == 1)
+			return (NULL);
+		run("sheduler", wait_next, (void **)sheduler);
+	}
 }

@@ -3,8 +3,13 @@ NAME := codexion
 CC := cc
 
 src_dir := coders/
-
-src_files := codexion.c parser.c realloc.c error_handeler.c coders.c sheduler.c monitor.c
+ 
+src_files := codexion.c codexion_cleanup.c link_base_data.c set_base_values.c alloc_base_data.c setup_threads.c \
+	realloc.c parser.c times.c write_error.c \
+	error_manager.c error_manag_run.c error_manag_run_help.c error_manag_print.c error_manag_log.c \
+	coders.c coder_set_status.c coder_use_dungles.c \
+	sheduler.c sheduler_assigne.c sheduler_set_dungles.c sheduler_getter.c sheduler_is_priority.c sheduler_prior_types.c \
+	monitor.c monitor_check_stop.c monitor_set_stop.c monitor_start.c
 
 includes_dir = $(src_dir)headers/
 
