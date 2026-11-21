@@ -6,7 +6,7 @@
 /*   By: sdeppe <sdeppe@student.42.fr>              +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/11/13 03:09:22 by sdeppe            #+#    #+#             */
-/*   Updated: 2026/11/13 06:22:10 by sdeppe           ###   ########.fr       */
+/*   Updated: 2026/11/21 15:41:44 by sdeppe           ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -33,19 +33,48 @@ void	send_error(t_error error)
 		printf("%sMising sheduler type parameter\n%s", RED, NORMAL);
 	else if (error == UNKNOWENED_SHEDULER_TYPE)
 		printf("%sUnknowened sheduler type parameter\n%s", RED, NORMAL);
+	else if (error == INVALID_NUMBER)
+		printf("%sNumber is invalid\n%s", RED, NORMAL);
+}
+
+t_error	get_unsigned(unsigned int *holder, char *from)
+{
+	int	res;
+
+	res = atoi(from);
+	if (res <= 0)
+		return (INVALID_NUMBER);
+	if (res == INT32_MAX && !strcmp(from, "2147483647"))
+		return (INVALID_NUMBER);
+	*holder = (unsigned int)res;
+	return (SUCCESS);
 }
 
 t_error	parse(int argc, char **argv, t_pars *pars_values)
 {
 	if (argc < 9)
 		return (argc - 1);
-	pars_values->n_cod = (unsigned int)atoi(argv[1]);
-	pars_values->burnout_time = (unsigned int)atoi(argv[2]);
-	pars_values->compile_time = (unsigned int)atoi(argv[3]);
-	pars_values->debug_time = (unsigned int)atoi(argv[4]);
-	pars_values->refactor_time = (unsigned int)atoi(argv[5]);
-	pars_values->required_compil = (unsigned int)atoi(argv[6]);
-	pars_values->dungle_time = (unsigned int)atoi(argv[7]);
+	if (get_unsigned(&pars_values->n_cod, argv[1]) != SUCCESS)
+		return (INVALID_NUMBER);
+	if (get_unsigned(&pars_values->burnout_time, argv[2]) != SUCCESS)
+		return (INVALID_NUMBER);
+	if (get_unsigned(&pars_values->compile_time, argv[1]) != SUCCESS)
+		return (INVALID_NUMBER);
+	if (get_unsigned(&pars_values->debug_time, argv[1]) != SUCCESS)
+		return (INVALID_NUMBER);
+	if (get_unsigned(&pars_values->refactor_time, argv[1]) != SUCCESS)
+		return (INVALID_NUMBER);
+	if (get_unsigned(&pars_values->required_compil, argv[1]) != SUCCESS)
+		return (INVALID_NUMBER);
+	if (get_unsigned(&pars_values->dungle_time, argv[1]) != SUCCESS)
+		return (INVALID_NUMBER);
+	// pars_values->n_cod = (unsigned int)atoi(argv[1]);
+	// pars_values->burnout_time = (unsigned int)atoi(argv[2]);
+	// pars_values->compile_time = (unsigned int)atoi(argv[3]);
+	// pars_values->debug_time = (unsigned int)atoi(argv[4]);
+	// pars_values->refactor_time = (unsigned int)atoi(argv[5]);
+	// pars_values->required_compil = (unsigned int)atoi(argv[6]);
+	// pars_values->dungle_time = (unsigned int)atoi(argv[7]);
 	if (strcmp(argv[8], "FIFO") == 0)
 		pars_values->sheduler = FIFO;
 	else if (strcmp(argv[8], "EDF") == 0)

@@ -6,7 +6,7 @@
 /*   By: sdeppe <sdeppe@student.42.fr>              +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/11/12 07:49:02 by sdeppe            #+#    #+#             */
-/*   Updated: 2026/11/16 17:36:56 by sdeppe           ###   ########.fr       */
+/*   Updated: 2026/11/21 15:30:11 by sdeppe           ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -45,12 +45,13 @@ enum e_error
 	MISSING_DUNGLE_TIME = 7,
 	MISSING_SHEDULER_TYPE = 8,
 	UNKNOWENED_SHEDULER_TYPE = 9,
+	INVALID_NUMBER = 10,
 	HEAPQ_SIZE_TO_LOW,
 	CODER_DIED,
 	GET_TIME_OF_DAY_ERROR,
 	MALLOC_ERROR,
 	ERROR_LIST_END,
-	PTHREAD_ERROR
+	PTHREAD_ERROR,
 };
 
 typedef struct error_manager
