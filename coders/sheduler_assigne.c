@@ -6,7 +6,7 @@
 /*   By: sdeppe <sdeppe@student.42.fr>              +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/11/13 05:46:30 by sdeppe            #+#    #+#             */
-/*   Updated: 2026/11/13 05:56:07 by sdeppe           ###   ########.fr       */
+/*   Updated: 2026/11/21 00:00:00 by sdeppe           ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -14,30 +14,49 @@
 
 // so here wer are using 3 bits
 // 1st represent the left coder 2nd represent the coder[i], 3rd the right coder
-static t_error	get_dung_waiters_byte(void **args)
+// left(i) is always right(i - 1) and self(i) is always right-of(i - 1)'s
+// right neighbour too, so for i != 0 both bits were already fetched while
+// handling i - 1 : only the new "right" bit needs a fresh lock.
+// prev[0] = self bit of (i - 1), prev[1] = right bit of (i - 1)
+static t_error	get_waiters_byte(void **args)
 {
 	t_sheduler	*sh;
 	uint32_t	*i;
+	uint8_t		*prev;
 	uint8_t		*count;
+	uint8_t		self_bit;
 
 	sh = (t_sheduler *)args[0];
 	i = (uint32_t *)args[1];
-	count = (uint8_t *)args[2];
-	if (pthread_mutex_lock(sh->can_take_mtx[left(*i, sh->n_cod)]) != SUCCESS)
-		return (PTHREAD_ERROR);
-	*count += (*sh->can_take_dungles[left(*i, sh->n_cod)] == WAITING);
-	if (pthread_mutex_unlock(sh->can_take_mtx[left(*i, sh->n_cod)]) != SUCCESS)
-		return (PTHREAD_ERROR);
-	if (pthread_mutex_lock(sh->can_take_mtx[*i]) != SUCCESS)
-		return (PTHREAD_ERROR);
-	*count += (*sh->can_take_dungles[*i] == WAITING) * 2;
-	if (pthread_mutex_unlock(sh->can_take_mtx[*i]) != SUCCESS)
-		return (PTHREAD_ERROR);
+	prev = (uint8_t *)args[2];
+	count = (uint8_t *)args[3];
+	if (*i == 0)
+	{
+		if (pthread_mutex_lock(sh->can_take_mtx[left(*i, sh->n_cod)]) != SUCCESS)
+			return (PTHREAD_ERROR);
+		*count = (*sh->can_take_dungles[left(*i, sh->n_cod)] == WAITING);
+		if (pthread_mutex_unlock(sh->can_take_mtx[left(*i, sh->n_cod)])
+			!= SUCCESS)
+			return (PTHREAD_ERROR);
+		if (pthread_mutex_lock(sh->can_take_mtx[*i]) != SUCCESS)
+			return (PTHREAD_ERROR);
+		self_bit = (*sh->can_take_dungles[*i] == WAITING);
+		if (pthread_mutex_unlock(sh->can_take_mtx[*i]) != SUCCESS)
+			return (PTHREAD_ERROR);
+	}
+	else
+	{
+		*count = prev[0];
+		self_bit = prev[1];
+	}
+	*count += self_bit * 2;
 	if (pthread_mutex_lock(sh->can_take_mtx[right(*i, sh->n_cod)]) != SUCCESS)
 		return (PTHREAD_ERROR);
-	*count += (*sh->can_take_dungles[right(*i, sh->n_cod)] == WAITING) * 4;
+	prev[1] = (*sh->can_take_dungles[right(*i, sh->n_cod)] == WAITING);
 	if (pthread_mutex_unlock(sh->can_take_mtx[right(*i, sh->n_cod)]) != SUCCESS)
 		return (PTHREAD_ERROR);
+	*count += prev[1] * 4;
+	prev[0] = self_bit;
 	return (SUCCESS);
 }
 
@@ -67,9 +86,8 @@ static t_error	broadcast_new_possesor(void **args)
 
 static char	is_prioritized_conflict(uint8_t count, uint32_t i, t_sheduler *sh)
 {
-	char	res;
+	uint32_t	res;
 
-	run("sheduler", get_dung_waiters_byte, (void *[]){sh, &i, &count});
 	if (!((count >> 1) & 1))
 		return (1);
 	res = 0;
@@ -86,6 +104,7 @@ t_error	assigne_one(void **args)
 {
 	uint32_t	i;
 	uint8_t		count;
+	uint8_t		prev[2];
 	t_assign	*vars;
 	uint8_t		stop;
 
@@ -97,13 +116,14 @@ t_error	assigne_one(void **args)
 	i = 0;
 	while (i < vars->sh->n_cod)
 	{
-		count = 0;
 		if (vars->sh->n_cod == 1)
 		{
 			run("sheduler", mark_one_dungle, (void *[]){vars->sh, &i});
 			i++;
 			continue ;
 		}
+		run("sheduler", get_waiters_byte,
+			(void *[]){vars->sh, &i, prev, &count});
 		if (vars->sh->dungles[i] == (uint32_t)DUNGLE_UNUSED && vars->sh
 			->dungles[left(i, vars->sh->n_cod)] == (uint32_t)DUNGLE_UNUSED)
 		{
