@@ -6,7 +6,7 @@
 /*   By: sdeppe <sdeppe@student.42.fr>              +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/11/13 03:09:22 by sdeppe            #+#    #+#             */
-/*   Updated: 2026/11/21 15:41:44 by sdeppe           ###   ########.fr       */
+/*   Updated: 2026/11/21 15:58:00 by sdeppe           ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -58,15 +58,15 @@ t_error	parse(int argc, char **argv, t_pars *pars_values)
 		return (INVALID_NUMBER);
 	if (get_unsigned(&pars_values->burnout_time, argv[2]) != SUCCESS)
 		return (INVALID_NUMBER);
-	if (get_unsigned(&pars_values->compile_time, argv[1]) != SUCCESS)
+	if (get_unsigned(&pars_values->compile_time, argv[3]) != SUCCESS)
 		return (INVALID_NUMBER);
-	if (get_unsigned(&pars_values->debug_time, argv[1]) != SUCCESS)
+	if (get_unsigned(&pars_values->debug_time, argv[4]) != SUCCESS)
 		return (INVALID_NUMBER);
-	if (get_unsigned(&pars_values->refactor_time, argv[1]) != SUCCESS)
+	if (get_unsigned(&pars_values->refactor_time, argv[5]) != SUCCESS)
 		return (INVALID_NUMBER);
-	if (get_unsigned(&pars_values->required_compil, argv[1]) != SUCCESS)
+	if (get_unsigned(&pars_values->required_compil, argv[6]) != SUCCESS)
 		return (INVALID_NUMBER);
-	if (get_unsigned(&pars_values->dungle_time, argv[1]) != SUCCESS)
+	if (get_unsigned(&pars_values->dungle_time, argv[7]) != SUCCESS)
 		return (INVALID_NUMBER);
 	// pars_values->n_cod = (unsigned int)atoi(argv[1]);
 	// pars_values->burnout_time = (unsigned int)atoi(argv[2]);
