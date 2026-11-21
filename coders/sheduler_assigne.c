@@ -12,54 +12,6 @@
 
 #include "codexion.h"
 
-// so here wer are using 3 bits
-// 1st represent the left coder 2nd represent the coder[i], 3rd the right coder
-// left(i) is always right(i - 1) and self(i) is always right-of(i - 1)'s
-// right neighbour too, so for i != 0 both bits were already fetched while
-// handling i - 1 : only the new "right" bit needs a fresh lock.
-// prev[0] = self bit of (i - 1), prev[1] = right bit of (i - 1)
-static t_error	get_waiters_byte(void **args)
-{
-	t_sheduler	*sh;
-	uint32_t	*i;
-	uint8_t		*prev;
-	uint8_t		*count;
-	uint8_t		self_bit;
-
-	sh = (t_sheduler *)args[0];
-	i = (uint32_t *)args[1];
-	prev = (uint8_t *)args[2];
-	count = (uint8_t *)args[3];
-	if (*i == 0)
-	{
-		if (pthread_mutex_lock(sh->can_take_mtx[left(*i, sh->n_cod)]) != SUCCESS)
-			return (PTHREAD_ERROR);
-		*count = (*sh->can_take_dungles[left(*i, sh->n_cod)] == WAITING);
-		if (pthread_mutex_unlock(sh->can_take_mtx[left(*i, sh->n_cod)])
-			!= SUCCESS)
-			return (PTHREAD_ERROR);
-		if (pthread_mutex_lock(sh->can_take_mtx[*i]) != SUCCESS)
-			return (PTHREAD_ERROR);
-		self_bit = (*sh->can_take_dungles[*i] == WAITING);
-		if (pthread_mutex_unlock(sh->can_take_mtx[*i]) != SUCCESS)
-			return (PTHREAD_ERROR);
-	}
-	else
-	{
-		*count = prev[0];
-		self_bit = prev[1];
-	}
-	*count += self_bit * 2;
-	if (pthread_mutex_lock(sh->can_take_mtx[right(*i, sh->n_cod)]) != SUCCESS)
-		return (PTHREAD_ERROR);
-	prev[1] = (*sh->can_take_dungles[right(*i, sh->n_cod)] == WAITING);
-	if (pthread_mutex_unlock(sh->can_take_mtx[right(*i, sh->n_cod)]) != SUCCESS)
-		return (PTHREAD_ERROR);
-	*count += prev[1] * 4;
-	prev[0] = self_bit;
-	return (SUCCESS);
-}
-
 static t_error	broadcast_new_possesor(void **args)
 {
 	t_sheduler	*sh;
@@ -100,6 +52,26 @@ static char	is_prioritized_conflict(uint8_t count, uint32_t i, t_sheduler *sh)
 	return (0);
 }
 
+static void	try_assign(t_assign *vars, uint32_t i, uint8_t count)
+{
+	if (vars->sh->dungles[i] != (uint32_t)DUNGLE_UNUSED || vars->sh
+		->dungles[left(i, vars->sh->n_cod)] != (uint32_t)DUNGLE_UNUSED)
+		return ;
+	if (is_prioritized_conflict(count, i, vars->sh))
+		return ;
+	run("sheduler", broadcast_new_possesor,
+		(void *[]){vars->sh, vars->could_compile, &i});
+}
+
+static uint8_t	handle_one_cod(t_assign *vars, uint32_t *i)
+{
+	if (vars->sh->n_cod != 1)
+		return (0);
+	run("sheduler", mark_one_dungle, (void *[]){vars->sh, i});
+	(*i)++;
+	return (1);
+}
+
 t_error	assigne_one(void **args)
 {
 	uint32_t	i;
@@ -116,22 +88,11 @@ t_error	assigne_one(void **args)
 	i = 0;
 	while (i < vars->sh->n_cod)
 	{
-		if (vars->sh->n_cod == 1)
-		{
-			run("sheduler", mark_one_dungle, (void *[]){vars->sh, &i});
-			i++;
+		if (handle_one_cod(vars, &i))
 			continue ;
-		}
 		run("sheduler", get_waiters_byte,
 			(void *[]){vars->sh, &i, prev, &count});
-		if (vars->sh->dungles[i] == (uint32_t)DUNGLE_UNUSED && vars->sh
-			->dungles[left(i, vars->sh->n_cod)] == (uint32_t)DUNGLE_UNUSED)
-		{
-			if (is_prioritized_conflict(count, i, vars->sh) && ++i)
-				continue ;
-			run("sheduler", broadcast_new_possesor,
-				(void *[]){vars->sh, vars->could_compile, &i});
-		}
+		try_assign(vars, i, count);
 		i++;
 	}
 	return (SUCCESS);

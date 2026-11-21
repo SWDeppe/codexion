@@ -78,7 +78,7 @@ static t_error	coder_died(void **args)
 			if (pthread_mutex_lock(&monitor->error_stop_mtx) != SUCCESS)
 				return (PTHREAD_ERROR);
 			monitor->error_code = CODER_DIED;
-			print("%i Coder %i died !",
+			print("%i Coder %i died !\n",
 				(uint32_t []){(uint32_t)ms_time - monitor->start, i}, 2);
 			pthread_mutex_unlock(&monitor->error_stop_mtx);
 		}

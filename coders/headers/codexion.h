@@ -92,7 +92,6 @@ typedef struct sheduler_s
 	pthread_cond_t	ready_cond;
 	uint8_t			ready;
 
-
 	struct timeval	tv;
 }	t_sheduler;
 
@@ -208,8 +207,15 @@ typedef struct get_time_s
 	uint64_t	*ms_time;
 }	t_get_tm;
 
+typedef struct s_buf
+{
+	char		*buf;
+	uint32_t	pos;
+}	t_buf;
+
 t_error		get_time(void **args);
 t_error		ms_to_abstime(void **args);
+t_error		precise_sleep(uint64_t ms);
 void		*sheduler_runtime(void *arg);
 void		*monitor_runtime(void *arg);
 void		*coder_runtime(void *arg);
@@ -226,6 +232,7 @@ t_error		is_stop(void **args);
 t_error		is_right_priority(void **args);
 t_error		is_left_priority(void **args);
 t_error		assigne_one(void **args);
+t_error		get_waiters_byte(void **args);
 t_error		mark_one_dungle(void **args);
 t_error		set_stop(void **args);
 uint8_t		check_stop(t_monitor *monitor);

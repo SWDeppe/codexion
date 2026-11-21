@@ -54,7 +54,8 @@ t_error	parse(int argc, char **argv, t_pars *pars_values)
 {
 	if (argc < 9)
 		return (argc - 1);
-	if (get_unsigned(&pars_values->n_cod, argv[1]) != SUCCESS || pars_values->n_cod == 0)
+	if (get_unsigned(&pars_values->n_cod, argv[1]) != SUCCESS
+		|| pars_values->n_cod == 0)
 		return (INVALID_NUMBER);
 	if (get_unsigned(&pars_values->burnout_time, argv[2]) != SUCCESS)
 		return (INVALID_NUMBER);

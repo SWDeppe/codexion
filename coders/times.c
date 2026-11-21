@@ -40,3 +40,25 @@ t_error	ms_to_abstime(void **args)
 	ts->tv_nsec = (us % 1000000) * 1000;
 	return (SUCCESS);
 }
+
+// redefines what "N ms" means for the coders: re-check gettimeofday
+// against an absolute target instead of trusting a single usleep() call,
+// which only guarantees a minimum, not an exact, duration.
+t_error	precise_sleep(uint64_t ms)
+{
+	uint64_t	start;
+	uint64_t	now;
+	uint64_t	elapsed;
+
+	if (get_time((void **)&(t_get_tm){&start}) != SUCCESS)
+		return (GET_TIME_OF_DAY_ERROR);
+	elapsed = 0;
+	while (elapsed < ms)
+	{
+		usleep((ms - elapsed) * 1000);
+		if (get_time((void **)&(t_get_tm){&now}) != SUCCESS)
+			return (GET_TIME_OF_DAY_ERROR);
+		elapsed = now - start;
+	}
+	return (SUCCESS);
+}
