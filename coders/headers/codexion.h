@@ -215,7 +215,6 @@ typedef struct s_buf
 
 t_error		get_time(void **args);
 t_error		ms_to_abstime(void **args);
-t_error		precise_sleep(uint64_t ms);
 void		*sheduler_runtime(void *arg);
 void		*monitor_runtime(void *arg);
 void		*coder_runtime(void *arg);
