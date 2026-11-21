@@ -46,7 +46,8 @@ t_error	set_stat(void **args)
 	{
 		if (pthread_mutex_lock(&coder->can_take_mtx) != SUCCESS)
 			return (PTHREAD_ERROR);
-		coder->can_take_dungles = WAITING;
+		if (coder->can_take_dungles != ONE_DUNG)
+			coder->can_take_dungles = WAITING;
 		if (pthread_mutex_unlock(&coder->can_take_mtx) != SUCCESS)
 			return (PTHREAD_ERROR);
 		run("Coder", wake_sheduler, (void **)coder);

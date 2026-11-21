@@ -23,6 +23,8 @@ t_error	set_fifo(void **args)
 	first = (uint32_t)((uint32_t *)args[1])[0];
 	second = (uint32_t)((uint32_t *)args[1])[1];
 	res = (uint32_t *)args[2];
+	if (first == second)
+		return (SUCCESS);
 	if (pthread_mutex_lock(sh->ask_times_mtx[first]) != SUCCESS)
 		return (PTHREAD_ERROR);
 	if (pthread_mutex_lock(sh->ask_times_mtx[second]) != SUCCESS)
@@ -47,6 +49,8 @@ t_error	set_edf(void **args)
 	first = (uint32_t)((uint32_t *)args[1])[0];
 	second = (uint32_t)((uint32_t *)args[1])[1];
 	res = (uint32_t *)args[2];
+	if (first == second)
+		return (SUCCESS);
 	if (pthread_mutex_lock(sh->compile_done_times_mtx[first]) != SUCCESS)
 		return (PTHREAD_ERROR);
 	if (pthread_mutex_lock(sh->compile_done_times_mtx[second]) != SUCCESS)

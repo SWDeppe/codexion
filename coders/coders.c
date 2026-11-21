@@ -48,28 +48,6 @@ t_error	error_check(void **args)
 	return (SUCCESS);
 }
 
-static t_error	wait_for_access(void **args)
-{
-	t_coder	*coder;
-
-	coder = (t_coder *)args;
-	if (pthread_mutex_lock(&coder->can_take_mtx) != SUCCESS)
-		return (PTHREAD_ERROR);
-	while (coder->can_take_dungles != CAN_TAKE_DUNGLE
-		&& coder->can_take_dungles != SIM_STOP)
-	{
-		if (pthread_cond_wait(&coder->can_take_cond, &coder->can_take_mtx)
-			!= SUCCESS)
-			return (PTHREAD_ERROR);
-	}
-	coder->used_dungle[0] = coder->dungles[0];
-	coder->used_dungle[1] = coder->dungles[1];
-	coder->can_take_dungles = USING;
-	if (pthread_mutex_unlock(&coder->can_take_mtx) != SUCCESS)
-		return (PTHREAD_ERROR);
-	return (SUCCESS);
-}
-
 static t_error	set_ask_time(void **args)
 {
 	t_coder		*coder;

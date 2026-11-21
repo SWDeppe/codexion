@@ -98,6 +98,12 @@ t_error	assigne_one(void **args)
 	while (i < vars->sh->n_cod)
 	{
 		count = 0;
+		if (vars->sh->n_cod == 1)
+		{
+			run("sheduler", mark_one_dungle, (void *[]){vars->sh, &i});
+			i++;
+			continue ;
+		}
 		if (vars->sh->dungles[i] == (uint32_t)DUNGLE_UNUSED && vars->sh
 			->dungles[left(i, vars->sh->n_cod)] == (uint32_t)DUNGLE_UNUSED)
 		{

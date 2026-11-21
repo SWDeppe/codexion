@@ -35,6 +35,7 @@ enum e_can_take
 	STARTUP,
 	// managed by sheduler
 	CAN_TAKE_DUNGLE,
+	ONE_DUNG,
 	// managed by monitor
 	ENOUTH_COMPILATIONS,
 	SIM_STOP,
@@ -90,6 +91,7 @@ typedef struct sheduler_s
 	pthread_mutex_t	ready_mtx;
 	pthread_cond_t	ready_cond;
 	uint8_t			ready;
+
 
 	struct timeval	tv;
 }	t_sheduler;
@@ -213,6 +215,7 @@ void		*monitor_runtime(void *arg);
 void		*coder_runtime(void *arg);
 t_error		set_stat(void **args);
 t_error		error_check(void **args);
+t_error		wait_for_access(void **args);
 int			use_dungles(t_coder *coder, uint64_t ms_time);
 t_error		set_dungles(void **args);
 uint32_t	left(uint32_t i, uint32_t max);
@@ -223,6 +226,7 @@ t_error		is_stop(void **args);
 t_error		is_right_priority(void **args);
 t_error		is_left_priority(void **args);
 t_error		assigne_one(void **args);
+t_error		mark_one_dungle(void **args);
 t_error		set_stop(void **args);
 uint8_t		check_stop(t_monitor *monitor);
 void		set_values(t_codexion *c, struct timeval tv, t_pars parsed);
@@ -232,5 +236,6 @@ t_error		alloc_monitor(t_monitor *m, uint32_t nc);
 t_error		setup_threads(t_codexion *c);
 t_error		start_monitor(void **args);
 void		cleanup(t_codexion *codexion);
+t_error		mark_one_dungle(void **args);
 
 #endif

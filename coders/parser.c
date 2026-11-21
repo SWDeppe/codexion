@@ -42,7 +42,7 @@ t_error	get_unsigned(unsigned int *holder, char *from)
 	int	res;
 
 	res = atoi(from);
-	if (res <= 0)
+	if (res < 0)
 		return (INVALID_NUMBER);
 	if (res == INT32_MAX && !strcmp(from, "2147483647"))
 		return (INVALID_NUMBER);
@@ -54,7 +54,7 @@ t_error	parse(int argc, char **argv, t_pars *pars_values)
 {
 	if (argc < 9)
 		return (argc - 1);
-	if (get_unsigned(&pars_values->n_cod, argv[1]) != SUCCESS)
+	if (get_unsigned(&pars_values->n_cod, argv[1]) != SUCCESS || pars_values->n_cod == 0)
 		return (INVALID_NUMBER);
 	if (get_unsigned(&pars_values->burnout_time, argv[2]) != SUCCESS)
 		return (INVALID_NUMBER);
@@ -68,13 +68,6 @@ t_error	parse(int argc, char **argv, t_pars *pars_values)
 		return (INVALID_NUMBER);
 	if (get_unsigned(&pars_values->dungle_time, argv[7]) != SUCCESS)
 		return (INVALID_NUMBER);
-	// pars_values->n_cod = (unsigned int)atoi(argv[1]);
-	// pars_values->burnout_time = (unsigned int)atoi(argv[2]);
-	// pars_values->compile_time = (unsigned int)atoi(argv[3]);
-	// pars_values->debug_time = (unsigned int)atoi(argv[4]);
-	// pars_values->refactor_time = (unsigned int)atoi(argv[5]);
-	// pars_values->required_compil = (unsigned int)atoi(argv[6]);
-	// pars_values->dungle_time = (unsigned int)atoi(argv[7]);
 	if (strcmp(argv[8], "FIFO") == 0)
 		pars_values->sheduler = FIFO;
 	else if (strcmp(argv[8], "EDF") == 0)
