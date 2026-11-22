@@ -50,6 +50,8 @@ static int	all_digits(char *s)
 			return (0);
 		i++;
 	}
+	if (i > 9)
+		return (0);
 	return (1);
 }
 
@@ -61,8 +63,6 @@ t_error	get_unsigned(unsigned int *holder, char *from)
 		return (INVALID_NUMBER);
 	res = atoi(from);
 	if (res < 0)
-		return (INVALID_NUMBER);
-	if (res == INT32_MAX && !strcmp(from, "2147483647"))
 		return (INVALID_NUMBER);
 	*holder = (unsigned int)res;
 	return (SUCCESS);
