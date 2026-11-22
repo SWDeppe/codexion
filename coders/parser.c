@@ -37,10 +37,28 @@ void	send_error(t_error error)
 		printf("%sNumber is invalid\n%s", RED, NORMAL);
 }
 
+static int	all_digits(char *s)
+{
+	int	i;
+
+	i = 0;
+	if (!s[i])
+		return (0);
+	while (s[i])
+	{
+		if (s[i] < '0' || s[i] > '9')
+			return (0);
+		i++;
+	}
+	return (1);
+}
+
 t_error	get_unsigned(unsigned int *holder, char *from)
 {
 	int	res;
 
+	if (!all_digits(from))
+		return (INVALID_NUMBER);
 	res = atoi(from);
 	if (res < 0)
 		return (INVALID_NUMBER);
