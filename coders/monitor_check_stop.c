@@ -53,7 +53,7 @@ static t_error	set_dies_in(void **args)
 	run("Monitor", get_time, (void **)&(t_get_tm){ms_time});
 	if (pthread_mutex_lock(monitor->compile_done_times_mtx[*i]) != SUCCESS)
 		return (PTHREAD_ERROR);
-	monitor->dies_in[*i] = monitor->burount_time
+	monitor->dies_in[*i] = monitor->burount_time + DEATH_GRACE_MS
 		- (*ms_time - *monitor->compile_done_times[*i]);
 	if (pthread_mutex_unlock(monitor->compile_done_times_mtx[*i]) != SUCCESS)
 		return (PTHREAD_ERROR);

@@ -25,6 +25,12 @@
 
 # define DUNGLE_UNUSED -1
 # define FREE_SPACE -1
+// small grace period before the monitor commits to a death verdict:
+// gives a sheduler grant that was already in flight (dungles handed
+// out, coder not yet woken to record its new compile_done_time) a
+// chance to land first. Must stay well under the 10ms detection
+// precision budget.
+# define DEATH_GRACE_MS 7
 
 enum e_can_take
 {
